@@ -17,39 +17,79 @@ import os, sys
 import requests
 import codecs
 from requests_html import HTMLSession
+from datetime import date, datetime
+import re
 
 CURDIR = os.path.dirname(__file__)
 
-def fetch_legacy():
+def fetch_data(text, filename=None):
+	'''
+	Since all data is contained in the get_csv() function in the original html,
+	the only left to do is to extract the raw string from the function.
+
+	Returns
+	-------
+	- rows of strings. 1st row is the header and each of the rest rows
+		is a comma separated string.
+	'''
+	reg = r'raw_str = "(.*)"'
+	match = re.search(reg, text)
+	rawStr = match.groups()[0]
+	rows = rawStr.split('\\n')
+	
+	if filename:
+		folder = '../../csv/'
+		if not os.path.exists(folder):
+			os.makedirs(folder)
+		csvfile = os.path.join(folder, '%s.csv' % filename)
+		webfile = os.path.join('../../web', '%s.html' % filename)
+		if not os.path.exists(csvfile) or \
+			os.path.getmtime(csvfile) < os.path.getmtime(webfile):
+			print('Updating to %s ...' % csvfile)
+			with codecs.open(csvfile, 'w', encoding='utf-8') as f:
+				for row in rows:
+					f.write('%s\n' % row)
+
+	return rows
+
+def fetch_unrendered():
 	'''
 	This func does not support JS driven websites, since the js generated 
 	content is rendered in client only. Requests only get the original html.
-
-	@para servant fetch the servant page if set True, otherwise the craft page.
 	'''
 	filenames = ['英灵图鉴', '礼装图鉴']
-	urls = ['%E8%8B%B1%E7%81%B5%E5%9B%BE%E9%89%B4', '%E7%A4%BC%E8%A3%85%E5%9B%BE%E9%89%B4']
 	
 	for filename in filenames:
 		url = os.path.join('https://fgo.wiki/w/', filename)
-		
 		webfile = os.path.join('../../web', '%s.html' % filename)
 
+		# This is added to prevent additional streams when testing.
+		# Can be deleted during final depoloyment.
 		if os.path.exists(webfile):
 			print('%s already exists ...' % webfile)
-			continue
+			# continue
 
 		try:
-			response = requests.get(url, stream=True)
+			req = requests.get(url, stream=True)
 		except requests.exceptions.ConnectionError:
-			print('Connection Failed. Please try again.')
-			sys.exit(1)
+			if not os.path.exists(webfile):
+				print('Connection Failed. Please try again later to get %s.' \
+					% os.path.basename(webfile))
+			continue
 
-		with codecs.open(webfile, 'w', encoding='utf-8') as f:
-			print('Retriving %s ...' % filename) # Future work: animating with progress
-			f.write(response.text)
+		lastModified = datetime.strptime(req.headers['Last-Modified'], 
+			'%a, %d %b %Y %H:%M:%S %Z')
 
-def fetch():
+		if not os.path.exists(webfile) or os.stat(webfile).st_size == 0 or \
+			datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastModified:
+			with codecs.open(webfile, 'w', encoding='utf-8') as f:
+				print('Upating %s ...' % filename)
+				f.write(req.text)
+
+		with codecs.open(webfile, 'r', encoding='utf-8') as f:
+			rows = fetch_data(f.read(), filename)
+
+def fetch_jsrendered():
 	'''
 	Utilize the new package: requests_html
 	Ref: https://stackoverflow.com/questions/8049520/web-scraping-javascript-page-with-python
@@ -65,9 +105,18 @@ def fetch():
 
 	webfile = os.path.join('../../web', '%s_rendered.html' % name)
 
-	with codecs.open(webfile, 'w', encoding='utf-8') as f:
-		print('Retriving %s ...' % name) # Future work: animating with progress
-		f.write(r.text)
+	lastModified = datetime.strptime(r.headers['Last-Modified'], 
+		'%a, %d %b %Y %H:%M:%S %Z')
+
+	if not os.path.exists(webfile) or os.stat(webfile).st_size == 0 or \
+		datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastModified:
+		with codecs.open(webfile, 'w', encoding='utf-8') as f:
+			print('Updating %s ...' % name)
+			f.write(r.text)
+
+def fetch():
+	fetch_unrendered()
+	# fetch_jsrendered()
 
 def main():
 	fetch()
