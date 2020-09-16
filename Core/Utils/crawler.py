@@ -38,35 +38,37 @@ def fetch_data(text, filename=None):
 	rows = rawStr.split('\\n')
 	
 	if filename:
-		folder = '../../csv/'
+		folder = os.path.join(CURDIR, '../../csv/')
 		if not os.path.exists(folder):
 			os.makedirs(folder)
 		csvfile = os.path.join(folder, '%s.csv' % filename)
-		webfile = os.path.join('../../web', '%s.html' % filename)
+		webfile = os.path.join(CURDIR, '../../web', '%s.html' % filename)
 		if not os.path.exists(csvfile) or \
 			os.path.getmtime(csvfile) < os.path.getmtime(webfile):
-			print('Updating to %s ...' % csvfile)
+			print('Updating %s ...' % os.path.relpath(csvfile))
 			with codecs.open(csvfile, 'w', encoding='utf-8') as f:
 				for row in rows:
 					f.write('%s\n' % row)
 
 	return rows
 
-def fetch_unrendered():
+def fetch_unrendered(urls):
 	'''
 	This func does not support JS driven websites, since the js generated 
 	content is rendered in client only. Requests only get the original html.
 	'''
-	filenames = ['英灵图鉴', '礼装图鉴']
+	# filenames = ['英灵图鉴', '礼装图鉴']
+	filenames = urls
 	
 	for filename in filenames:
+		filename = filename.replace('/', '-')
 		url = os.path.join('https://fgo.wiki/w/', filename)
-		webfile = os.path.join('../../web', '%s.html' % filename)
+		webfile = os.path.join(CURDIR, '../../web', '%s.html' % filename)
 
 		# This is added to prevent additional streams when testing.
 		# Can be deleted during final depoloyment.
 		if os.path.exists(webfile):
-			print('%s already exists ...' % webfile)
+			print('%s already exists ...' % os.path.relpath(webfile))
 			# continue
 
 		try:
@@ -77,25 +79,35 @@ def fetch_unrendered():
 					% os.path.basename(webfile))
 			continue
 
-		lastModified = datetime.strptime(req.headers['Last-Modified'], 
-			'%a, %d %b %Y %H:%M:%S %Z')
-
+		# Use the <li id="footer-info-lastmod"> tag to identify the 
+		# last modi time
+		try:
+			reg = r'<li id="footer-info-lastmod">.*(\d{4})年(\d{1,2})月(\d{1,2})日' \
+				r'\D*(\d{1,2}):(\d{1,2}).*</li>'
+			y, m, d, H, M = [int(i) for i in re.search(reg, req.text).groups()]
+			lastmod = '%i %i %i %i:%i:00 CST' % (d, m, y, H, M)
+			lastmod = datetime.strptime(lastmod, '%d %m %Y %H:%M:%S %Z')
+		except:
+			lastmod = datetime.now()
+		
 		if not os.path.exists(webfile) or os.stat(webfile).st_size == 0 or \
-			datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastModified:
+			datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastmod:
 			with codecs.open(webfile, 'w', encoding='utf-8') as f:
 				print('Upating %s ...' % filename)
 				f.write(req.text)
 
-		with codecs.open(webfile, 'r', encoding='utf-8') as f:
-			rows = fetch_data(f.read(), filename)
+		if filename in ['英灵图鉴', '礼装图鉴']:
+			with codecs.open(webfile, 'r', encoding='utf-8') as f:
+				rows = fetch_data(f.read(), filename)
 
-def fetch_jsrendered():
+def fetch_jsrendered(urls):
 	'''
 	Utilize the new package: requests_html
 	Ref: https://stackoverflow.com/questions/8049520/web-scraping-javascript-page-with-python
 	Ref: https://github.com/psf/requests-html
 	'''
-	names = ['英灵图鉴', '礼装图鉴']
+	# names = ['英灵图鉴', '礼装图鉴']
+	names = urls
 	rooturl = 'https://fgo.wiki/w/'
 	name = names[0]
 	
@@ -103,7 +115,7 @@ def fetch_jsrendered():
 	r = session.get(os.path.join(rooturl, name))
 	r.html.render()
 
-	webfile = os.path.join('../../web', '%s_rendered.html' % name)
+	webfile = os.path.join(CURDIR, '../../web', '%s_rendered.html' % name)
 
 	lastModified = datetime.strptime(r.headers['Last-Modified'], 
 		'%a, %d %b %Y %H:%M:%S %Z')
@@ -115,8 +127,9 @@ def fetch_jsrendered():
 			f.write(r.text)
 
 def fetch():
-	fetch_unrendered()
-	# fetch_jsrendered()
+	urls = ['英灵图鉴', '礼装图鉴', '拉斯维加斯御前比试推荐召唤2/模拟器']
+	fetch_unrendered(urls)
+	# fetch_jsrendered(urls)
 
 def main():
 	fetch()
