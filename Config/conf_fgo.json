@@ -1,0 +1,12 @@
+{
+	"summary": {
+		"file": "conf_fgo.json",
+		"author": "Xueman Mou",
+		"created": "2020-9-14 15:58:00 GMT +08",
+		"version": "Id: conf_fgo.json 01 2020-9-14 15:58:00 GMT +08",
+		"description": "This file describes all necessary background info to setup a gacha simulation for FGO."
+	},
+	"name": "FGO",
+	"card_type": ["SSR", "SR"],
+	"pool_type": ["story", "rateup"]
+}

@@ -1,0 +1,10 @@
+{
+	"desc": {
+		"file": "config.json",
+		"author": "Xueman Mou",
+		"created": "2020-9-14 15:56:00 GMT +08",
+		"version": "Id: config.json 01 2020-9-14 15:56:00 GMT +08",
+		"description": "The file specifies which game the gacha runs in."
+	},
+	"game": "FGO"
+}

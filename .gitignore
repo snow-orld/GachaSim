@@ -1,0 +1,10 @@
+__pycache__
+
+.idea
+.ipynb_checkpoints
+
+.DS_Store
+._.DS_Store
+
+web
+wheels
