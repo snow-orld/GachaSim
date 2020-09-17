@@ -8,7 +8,6 @@
 @env 		python 3.8.4
 
 Fetch servant details from fgo.wiki.
-TODO: fetch craft essence.
 
 Ref: https://www.codementor.io/@codementorteam/how-to-scrape-an-ajax-website-using-python-qw8fuitvi
 """
@@ -16,7 +15,9 @@ Ref: https://www.codementor.io/@codementorteam/how-to-scrape-an-ajax-website-usi
 import os, sys
 import requests
 import codecs
-from requests_html import HTMLSession
+import platform
+if platform.system() != 'Windows':
+	from requests_html import HTMLSession
 from datetime import date, datetime
 import re
 
@@ -69,7 +70,9 @@ def fetch_unrendered(urls):
 		# Can be deleted during final depoloyment.
 		if os.path.exists(webfile):
 			print('%s already exists ...' % os.path.relpath(webfile))
-			# continue
+			# Windows is internet access restricted
+			if platform.system() == 'Windows':
+				continue
 
 		try:
 			req = requests.get(url, stream=True)
@@ -80,7 +83,7 @@ def fetch_unrendered(urls):
 			continue
 
 		# Use the <li id="footer-info-lastmod"> tag to identify the 
-		# last modi time
+		# last modified time
 		try:
 			reg = r'<li id="footer-info-lastmod">.*(\d{4})年(\d{1,2})月(\d{1,2})日' \
 				r'\D*(\d{1,2}):(\d{1,2}).*</li>'
