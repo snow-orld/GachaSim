@@ -16,5 +16,5 @@ class Craft(FGOCard):
 	"""
 	Class Essence Craft, a special kind of FGO Card.
 	"""
-	def __init__(self, id, rank, name):
-		super(Craft, self).__init__('FGO', id, rank, 'craft', name, '2016-10-24', '.')
+	def __init__(self, id, star, name):
+		super(Craft, self).__init__('FGO', id, star, 'craft', name, '2016-10-24', '.')

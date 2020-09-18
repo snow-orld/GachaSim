@@ -24,19 +24,17 @@ import re
 CURDIR = os.path.dirname(__file__)
 
 def fetch_data(text, filename=None):
-	'''
+	"""
 	Since all data is contained in the get_csv() function in the original html,
 	the only left to do is to extract the raw string from the function.
 
-	Returns
-	-------
-	- rows of strings. 1st row is the header and each of the rest rows
+	@return rows of strings. 1st row is the header and each of the rest rows
 		is a comma separated string.
-	'''
-	reg = r'raw_str = "(.*)"'
+	"""
+	reg = r'rawstr = "(.*)"'
 	match = re.search(reg, text)
-	rawStr = match.groups()[0]
-	rows = rawStr.split('\\n')
+	rawstr = match.groups()[0]
+	rows = rawstr.split('\\n')
 	
 	if filename:
 		folder = os.path.join(CURDIR, '../../csv/')
@@ -54,10 +52,10 @@ def fetch_data(text, filename=None):
 	return rows
 
 def fetch_unrendered(urls):
-	'''
-	This func does not support JS driven websites, since the js generated 
+	"""
+	This func does not support JS driven websites, since the js generated
 	content is rendered in client only. Requests only get the original html.
-	'''
+	"""
 	# filenames = ['英灵图鉴', '礼装图鉴']
 	filenames = urls
 	
@@ -66,7 +64,7 @@ def fetch_unrendered(urls):
 		url = os.path.join('https://fgo.wiki/w/', filename)
 		webfile = os.path.join(CURDIR, '../../web', '%s.html' % filename)
 
-		# This is added to prevent additional streams when testing.
+		# This is added to prevent additional net access when testing.
 		# Can be deleted during final depoloyment.
 		if os.path.exists(webfile):
 			print('%s already exists ...' % os.path.relpath(webfile))
@@ -90,8 +88,8 @@ def fetch_unrendered(urls):
 			y, m, d, H, M = [int(i) for i in re.search(reg, req.text).groups()]
 			lastmod = '%i %i %i %i:%i:00 CST' % (d, m, y, H, M)
 			lastmod = datetime.strptime(lastmod, '%d %m %Y %H:%M:%S %Z')
-		except:
-			lastmod = datetime.now()
+		except AttributeError:
+			lastmod = datetime.utcfromtimestamp(os.path.getmtime(webfile))
 		
 		if not os.path.exists(webfile) or os.stat(webfile).st_size == 0 or \
 			datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastmod:
@@ -104,30 +102,38 @@ def fetch_unrendered(urls):
 				rows = fetch_data(f.read(), filename)
 
 def fetch_jsrendered(urls):
-	'''
+	"""
 	Utilize the new package: requests_html
 	Ref: https://stackoverflow.com/questions/8049520/web-scraping-javascript-page-with-python
 	Ref: https://github.com/psf/requests-html
-	'''
+	"""
 	# names = ['英灵图鉴', '礼装图鉴']
 	names = urls
 	rooturl = 'https://fgo.wiki/w/'
-	name = names[0]
-	
-	session = HTMLSession()
-	r = session.get(os.path.join(rooturl, name))
-	r.html.render()
 
-	webfile = os.path.join(CURDIR, '../../web', '%s_rendered.html' % name)
+	for name in names:
+		session = HTMLSession()
+		r = session.get(os.path.join(rooturl, name))
+		r.html.render()
 
-	lastModified = datetime.strptime(r.headers['Last-Modified'], 
-		'%a, %d %b %Y %H:%M:%S %Z')
+		webfile = os.path.join(CURDIR, '../../web', '%s_rendered.html' % name)
 
-	if not os.path.exists(webfile) or os.stat(webfile).st_size == 0 or \
-		datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastModified:
-		with codecs.open(webfile, 'w', encoding='utf-8') as f:
-			print('Updating %s ...' % name)
-			f.write(r.text)
+		# Use the <li id="footer-info-lastmod"> tag to identify the
+		# last modified time
+		try:
+			reg = r'<li id="footer-info-lastmod">.*(\d{4})年(\d{1,2})月(\d{1,2})日' \
+			      r'\D*(\d{1,2}):(\d{1,2}).*</li>'
+			y, m, d, H, M = [int(i) for i in re.search(reg, req.text).groups()]
+			lastmod = '%i %i %i %i:%i:00 CST' % (d, m, y, H, M)
+			lastmod = datetime.strptime(lastmod, '%d %m %Y %H:%M:%S %Z')
+		except AttributeError:
+			lastmod = datetime.utcfromtimestamp(os.path.getmtime(webfile))
+
+		if not os.path.exists(webfile) or os.stat(webfile).st_size == 0 or \
+			datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastmod:
+			with codecs.open(webfile, 'w', encoding='utf-8') as f:
+				print('Updating %s ...' % name)
+				f.write(r.text)
 
 def fetch():
 	urls = ['英灵图鉴', '礼装图鉴', '拉斯维加斯御前比试推荐召唤2/模拟器']

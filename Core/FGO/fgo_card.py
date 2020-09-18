@@ -19,16 +19,20 @@ class FGOCard(Card):
 
 	@attr inherit all attributes defined in Card
 
-	@attr type the card type, whether it is a servant or an essence craft
-	@attr name the name that appears on the card
+	@attr card_type the card type, whether it is a servant or an essence craft
+	@attr name_cn the name_cn that appears on the card
 	"""
-	def __init__(self, game, id, rank, type, name, releaseDate, imgLink):
-		super(FGOCard, self).__init__(game, id, rank, releaseDate, imgLink)
-		self.type = type
-		self.name = name
+	def __init__(self, card_type, id, star, name_cn, img_link):
+		super(FGOCard, self).__init__('FGO', id, star, img_link)
+		self.__card_type = card_type.lower()
+		self.__name_cn = name_cn
+
+	def is_valid(self):
+		return self.__card_type.lower() in ['servant', 'craft'] and \
+				self.__rank in range(1, 6)
 
 	def __repr__(self):
 		pass
 
 if __name__ == '__main__':
-	fgoCard = FGOCard('FGO', 0, 'SSR', 'Servant', 0, '2020-9-15', '.')
+	fgoCard = FGOCard('Servant', 1, 4, 0, '.')

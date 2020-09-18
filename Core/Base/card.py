@@ -16,13 +16,12 @@ class Card(object):
 
 	@attr id the card unique identifier number
 	@attr rank the rareness rank of the card. differs in different games.
-	@attr imgLink the path to the image of the card. can be either local path or url.
+	@attr card_img the path to the image of the card. can be either local path or url.
 	@attr game the game name to which the card belongs
 	"""
-	def __init__(self, game, id, rank, releaseDate, imgLink):
+	def __init__(self, game, id, rank, card_img_link):
 		super(Card, self).__init__()
-		self.id = id
-		self.rank = rank
-		self.releaseDate = releaseDate
-		self.imgLink = imgLink
-		self.game = game
+		self.__id = id
+		self.__rank = rank
+		self.__card_img = card_img_link
+		self.__game = game

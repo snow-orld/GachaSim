@@ -7,6 +7,6 @@ __pycache__
 ._.DS_Store
 
 wheels
-# web
-# csv
-# img
+tmp
+web
+csv

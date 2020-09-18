@@ -16,5 +16,12 @@ class Servant(FGOCard):
 	"""
 	FGO Servant.
 	"""
-	def __init__(self, id, rank, name):
-		super(Servant, self).__init__('FGO', id, rank, 'servant', name, '2016-10-25')
+	def __init__(self, id, star, name_cn, name_jp, name_en, name_link, name_other, cost, \
+		faction, get, hp, atk, class_link, avatar, card1, card2, card3, \
+		card4, card5, np_card, np_type, class_icon, stars_marker, class_marker, \
+		get_marker, cards_marker, npc_marker, npt_marker, fac_marker, \
+		sex_marker, prop1_marker, prop2_marker, traits_marker, sort_atk, \
+		sort_hp):
+		# Fetch the card img used to display during gachaing then call the parent's init
+
+		super(Servant, self).__init__('servant', id, len(star), name_cn)

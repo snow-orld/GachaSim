@@ -15,16 +15,16 @@ class Pool(object):
 	Class Pool for gacha.
 
 	@attr id the unique pool identification
-	@attr startDate the starting date of the pool, including date and time
+	@attr start_date the starting date of the pool, including date and time
 	@attr duration the number of days when the pool is open
 	@attr rates a dictionary of drawing rates for each type of card
 	"""
-	def __init__(self, id, startDate, openDays, rates):
+	def __init__(self, id, start_date, open_days, rates):
 		super(Pool, self).__init__()
-		self.id = id
-		self.startDate = startDate
-		self.endDate = startDate + openDays
-		self.rates = rates
+		self.__id = id
+		self.__start_date = start_date
+		self.__end_date = start_date + open_days
+		self.__rates = rates
 
 	def draw(self):
 		"""The gacha core."""

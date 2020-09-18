@@ -17,10 +17,10 @@ class FGOPool(Pool):
 	FGO pool.
 
 	@attr inherit all attributes from Pool.
-	@attr poolType the type of the pool, either story or rate-up temporary pool
+	@attr pool_type the type of the pool, either story or rate-up temporary pool
 	@attr name the descriptive pool name
 	"""
-	def __init__(self, id, poolType, name, startDate, openDays, rates):
-		super(FGOPool, self).__init__(id, startDate, openDays, rates)
-		self.type = poolType
+	def __init__(self, id, pool_type, name, start_date, open_days, rates):
+		super(FGOPool, self).__init__(id, start_date, open_days, rates)
+		self.type = pool_type
 		self.name = name
