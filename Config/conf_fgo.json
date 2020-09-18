@@ -8,5 +8,8 @@
 	},
 	"name": "FGO",
 	"card_type": ["SSR", "SR"],
-	"pool_type": ["story", "rateup"]
+	"pool_type": ["story", "rateup"],
+	"url": "https://fgo.wiki",
+	"url_img_root": "https://fgo.wiki",
+	"url_webpage_root": "https://fgo.wiki/w"
 }

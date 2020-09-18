@@ -16,15 +16,19 @@ import json
 
 CURDIR = os.path.dirname(__file__)
 
-def readConf():
+def read_conf():
 	"""Read from config file to load details of a game."""
 	confFile = os.path.join(CURDIR, '../../Config/conf.json')
 	with open(confFile, 'r') as f:
-		game = json.load(f)['game']
+		conf = json.load(f)
+		game = conf['game']
+		online = conf['use_cache']
 	gameConfFile = os.path.join(CURDIR, '../../Config/conf_%s.json' % game.lower())
 	with open(gameConfFile, 'r') as f:
-		return json.load(f)
+		conf = json.load(f)
+		conf['use_cache'] = online
+		return conf
 
 if __name__ == '__main__':
-	conf = readConf()
+	conf = read_conf()
 	print(conf)

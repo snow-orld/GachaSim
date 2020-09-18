@@ -20,28 +20,128 @@ if platform.system() != 'Windows':
 	from requests_html import HTMLSession
 from datetime import date, datetime
 import re
+from bs4 import BeautifulSoup
+
+from .config import read_conf
 
 CURDIR = os.path.dirname(__file__)
+GAMECONF = read_conf()
 
-def fetch_data(text, filename=None):
+def crawl_data(name, renderJS=False):
+	"""
+	Crawl data from remote fgo.wiki/w/name.
+
+	@param name the relative url of target url to fgo.wiki/w/
+	@param renderJS whether to render js driven websites
+	@return r the oringal or js rendered response of sent requensts
+	"""
+	if not renderJS:
+		get = requests.get
+		ConnectionError = requests.exceptions.ConnectionError
+	else:
+		session = HTMLSession()
+		get = session.get
+	try:
+		url = os.path.join(GAMECONF['url_webpage_root'], name)
+		r = get(url, stream=True)
+	except:
+		if not os.path.exists(file):
+			print('Connection Failed. Please try again later to get %s.' % name)
+	else:
+		if renderJS:
+			r.html.render()
+	
+	return r
+
+def download_page(name, renderJS=False):
+	"""
+	Dowanload the remote webpage to local web file.
+
+	@param name the relative url to webpage root fgo.wiki/w/
+	@param renderJS whether to render js driven websites
+	@return the downloaded file's path
+	"""
+
+	webfolder = os.path.join(CURDIR, '../../web')
+	if not os.path.exists(webfolder):
+		os.makedirs(webfolder)
+	file = os.path.join(webfolder, '%s%s.html' 
+		 % (name.replace('/','-'), '_rendered' if renderJS else ''))
+
+	if os.path.exists(file):
+		print('%s already exists ...' % os.path.relpath(file))
+	# Windows is internet access restricted
+	if platform.system() == 'Windows':
+		print('Restricted internet access to check latest %s.' % name)
+		return file
+
+	r = crawl_data(name, renderJS)
+
+	# Use the <li id="footer-info-lastmod"> tag to identify the
+	# last modified time
+	try:
+		reg = r'<li id="footer-info-lastmod">.*(\d{4})年(\d{1,2})月(\d{1,2})日' \
+		      r'\D*(\d{1,2}):(\d{1,2}).*</li>'
+		y, m, d, H, M = [int(i) for i in re.search(reg, r.text).groups()]
+		lastmod = '%i %i %i %i:%i:00 CST' % (d, m, y, H, M)
+		lastmod = datetime.strptime(lastmod, '%d %m %Y %H:%M:%S %Z')
+	except AttributeError:
+		lastmod = datetime.utcfromtimestamp(os.path.getmtime(file))
+
+	if not os.path.exists(file) or os.stat(file).st_size == 0 \
+		or datetime.utcfromtimestamp(os.path.getmtime(file)) < lastmod:
+		with codecs.open(file, 'w', encoding='utf-8') as f:
+			print('Updating %s ...' % os.path.basename(file))
+			f.write(r.text)
+
+	return file
+
+def fetch_data_as_text(name, online=True, renderJS=False):
+	"""
+	According to given sub url's name appended after fgo.wiki/w/, get the list
+	data of either sevant or craft as a html text.
+
+	@param name the relative url of target url to fgo.wiki/w/
+	@param online whether get the text only using internet access without cache
+	@param renderJS whether to render js driven websites
+	@return r the oringal or js rendered response of sent requensts
+	"""
+	if online:
+		url = os.path.join(GAMECONF['url_webpage_root'], name)
+		print('Reading %s ...' % url)
+		r = crawl_data(name, renderJS)
+		return r.text
+	else:
+		print('Reading cached data: ', end='')
+		file = download_page(name, renderJS)
+		with codecs.open(file, 'r', encoding='utf-8') as f:
+			return f.read()
+
+def fetch_csv_data(name, online=True, renderJS=False):
 	"""
 	Since all data is contained in the get_csv() function in the original html,
 	the only left to do is to extract the raw string from the function.
 
+	@param name the relative url of target url to fgo.wiki/w/
+	@param online whether get the text only using internet access without cache
+	@param renderJS whether to render js driven websites
 	@return rows of strings. 1st row is the header and each of the rest rows
 		is a comma separated string.
 	"""
-	reg = r'rawstr = "(.*)"'
-	match = re.search(reg, text)
+	assert name in ['英灵图鉴', '礼装图鉴'], "Cannot fetch csv data from %s" % name
+	html_text = fetch_data_as_text(name, online, renderJS)
+
+	reg = r'raw_str = "(.*)"'
+	match = re.search(reg, html_text)
 	rawstr = match.groups()[0]
 	rows = rawstr.split('\\n')
 	
-	if filename:
+	if not online:
 		folder = os.path.join(CURDIR, '../../csv/')
 		if not os.path.exists(folder):
 			os.makedirs(folder)
-		csvfile = os.path.join(folder, '%s.csv' % filename)
-		webfile = os.path.join(CURDIR, '../../web', '%s.html' % filename)
+		csvfile = os.path.join(folder, '%s.csv' % name)
+		webfile = os.path.join(CURDIR, '../../web', '%s.html' % name)
 		if not os.path.exists(csvfile) or \
 			os.path.getmtime(csvfile) < os.path.getmtime(webfile):
 			print('Updating %s ...' % os.path.relpath(csvfile))
@@ -51,97 +151,59 @@ def fetch_data(text, filename=None):
 
 	return rows
 
-def fetch_unrendered(urls):
+def fetch_unrendered(urls, use_cache):
 	"""
 	This func does not support JS driven websites, since the js generated
 	content is rendered in client only. Requests only get the original html.
+
+	@param urls list of relative url after GAMECONF['url_webpage_root']
+	@param use_cache whether to use cached html file on local disk
 	"""
-	# filenames = ['英灵图鉴', '礼装图鉴']
-	filenames = urls
-	
-	for filename in filenames:
-		filename = filename.replace('/', '-')
-		url = os.path.join('https://fgo.wiki/w/', filename)
-		webfile = os.path.join(CURDIR, '../../web', '%s.html' % filename)
+	for url in urls:
+		if url in ['英灵图鉴', '礼装图鉴']:
+			rows = fetch_csv_data(url, online=not use_cache, renderJS=False)
+		elif use_cache:
+			file = download_page(url, renderJS=False)
 
-		# This is added to prevent additional net access when testing.
-		# Can be deleted during final depoloyment.
-		if os.path.exists(webfile):
-			print('%s already exists ...' % os.path.relpath(webfile))
-			# Windows is internet access restricted
-			if platform.system() == 'Windows':
-				continue
-
-		try:
-			req = requests.get(url, stream=True)
-		except requests.exceptions.ConnectionError:
-			if not os.path.exists(webfile):
-				print('Connection Failed. Please try again later to get %s.' \
-					% os.path.basename(webfile))
-			continue
-
-		# Use the <li id="footer-info-lastmod"> tag to identify the 
-		# last modified time
-		try:
-			reg = r'<li id="footer-info-lastmod">.*(\d{4})年(\d{1,2})月(\d{1,2})日' \
-				r'\D*(\d{1,2}):(\d{1,2}).*</li>'
-			y, m, d, H, M = [int(i) for i in re.search(reg, req.text).groups()]
-			lastmod = '%i %i %i %i:%i:00 CST' % (d, m, y, H, M)
-			lastmod = datetime.strptime(lastmod, '%d %m %Y %H:%M:%S %Z')
-		except AttributeError:
-			lastmod = datetime.utcfromtimestamp(os.path.getmtime(webfile))
-		
-		if not os.path.exists(webfile) or os.stat(webfile).st_size == 0 or \
-			datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastmod:
-			with codecs.open(webfile, 'w', encoding='utf-8') as f:
-				print('Upating %s ...' % filename)
-				f.write(req.text)
-
-		if filename in ['英灵图鉴', '礼装图鉴']:
-			with codecs.open(webfile, 'r', encoding='utf-8') as f:
-				rows = fetch_data(f.read(), filename)
-
-def fetch_jsrendered(urls):
+def fetch_jsrendered(urls, use_cache):
 	"""
 	Utilize the new package: requests_html
 	Ref: https://stackoverflow.com/questions/8049520/web-scraping-javascript-page-with-python
 	Ref: https://github.com/psf/requests-html
+
+	2020/9/18:
+	Rendered html contains the scripts that fills in the web content!
+	Gacha logic can refer to these scripts.
+
+	@param urls list of relative url after GAMECONF['url_webpage_root']
+	@param use_cache whether to use cached html file on local disk
 	"""
-	# names = ['英灵图鉴', '礼装图鉴']
-	names = urls
-	rooturl = 'https://fgo.wiki/w/'
+	for url in urls:
+		if url in ['英灵图鉴', '礼装图鉴']:
+			rows = fetch_csv_data(url, online=not use_cache, renderJS=True)
+		elif use_cache:
+			file = download_page(url, renderJS=True)
 
-	for name in names:
-		session = HTMLSession()
-		r = session.get(os.path.join(rooturl, name))
-		r.html.render()
-
-		webfile = os.path.join(CURDIR, '../../web', '%s_rendered.html' % name)
-
-		# Use the <li id="footer-info-lastmod"> tag to identify the
-		# last modified time
-		try:
-			reg = r'<li id="footer-info-lastmod">.*(\d{4})年(\d{1,2})月(\d{1,2})日' \
-			      r'\D*(\d{1,2}):(\d{1,2}).*</li>'
-			y, m, d, H, M = [int(i) for i in re.search(reg, req.text).groups()]
-			lastmod = '%i %i %i %i:%i:00 CST' % (d, m, y, H, M)
-			lastmod = datetime.strptime(lastmod, '%d %m %Y %H:%M:%S %Z')
-		except AttributeError:
-			lastmod = datetime.utcfromtimestamp(os.path.getmtime(webfile))
-
-		if not os.path.exists(webfile) or os.stat(webfile).st_size == 0 or \
-			datetime.utcfromtimestamp(os.path.getmtime(webfile)) < lastmod:
-			with codecs.open(webfile, 'w', encoding='utf-8') as f:
-				print('Updating %s ...' % name)
-				f.write(r.text)
-
-def fetch():
+def fetch(use_cache):
 	urls = ['英灵图鉴', '礼装图鉴', '拉斯维加斯御前比试推荐召唤2/模拟器']
-	fetch_unrendered(urls)
-	# fetch_jsrendered(urls)
+	fetch_unrendered(urls, use_cache)
+	# fetch_jsrendered(urls, use_cache)
+
+def fetch_servant_card_images(name_link, use_cache, renderJS=False):
+	"""
+	Fetch all of the images' link of the servant by name_link.
+	
+	@param online whether to fetch directly online without using cache
+	@param renderJS whether to render js driven websites.
+	@return list of image links in order of Phase 1, 2, 3, 4, costume,
+			 and april fool
+	"""
+	html_text = fetch_data_as_text(name_link, not use_cache, renderJS)
 
 def main():
-	fetch()
+	use_cache = GAMECONF['use_cache']
+	fetch(use_cache)
+	fetch_servant_card_images('玛修·基列莱特', use_cache)
 
 if __name__ == '__main__':
 	main()

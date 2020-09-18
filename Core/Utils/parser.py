@@ -4,7 +4,7 @@
 @file 		parser.py
 @author 	Xueman Mou
 @created 	2020-9-17 13:05:00 GMT +0800
-@version 	$Id: parser.py 01 2020-9-17 13:05:00 GMT +0800 $
+@version 	$Id: parser.py 01 2020-9-18 19:48:00 GMT +0800 $
 @env 		python 3.8.4
 
 Parse fetched data in format of lines, each of which is describing brief
@@ -67,13 +67,14 @@ def parse_servant(lines):
 		sex_marker, prop1_marker, prop2_marker, traits_marker, sort_atk, \
 		sort_hp = line.rstrip().split(',')
 
+		print('Servant %03d: %s %s %s avatar %s hp %s atk %s '\
+			'np_type %s class_icon %s sort_atk %s sort_hp %s' % 
+			(int(id), name_cn, name_link, class_link, avatar, hp, atk,
+			np_type, class_icon, sort_atk, sort_hp))
+
 		servant = Servant(id, star, name_cn, name_jp, name_en, name_link, \
 		                  name_other, cost, faction, get, hp, atk, class_link, \
-		                  avatar, card1, card2, card3, card4, card5, np_card, \
-		                  np_type, class_icon, stars_marker, class_marker, \
-		                  get_marker, cards_marker, npc_marker, npt_marker, \
-		                  fac_marker, sex_marker, prop1_marker, prop2_marker, \
-		                  traits_marker, sort_atk, sort_hp)
+		                  avatar, np_type)
 		break
 
 	return servants
