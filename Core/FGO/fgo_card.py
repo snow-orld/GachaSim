@@ -10,8 +10,12 @@
 Class Card in FGO.
 """
 
+import os
 import cv2
+import requests
 from ..Base.card import Card
+
+CURDIR = os.path.dirname(__file__)
 
 class FGOCard(Card):
 	"""
@@ -24,7 +28,7 @@ class FGOCard(Card):
 	"""
 	def __init__(self, card_type, id, star, name_cn, img_link):
 		super(FGOCard, self).__init__('FGO', id, star, img_link)
-		self.card_type = card_type.lower()
+		self.card_type = card_type.title()
 		self.name_cn = name_cn
 
 	def is_valid(self):
@@ -33,6 +37,28 @@ class FGOCard(Card):
 
 	def __repr__(self):
 		pass
+
+	def download_gacha_card_img(self):
+		img_folder = os.path.join(CURDIR, '../../Assets/Images/FGO/%s' \
+			% self.card_type)
+		if not os.path.exists(img_folder):
+			os.makedirs(img_folder)
+		img_file = os.path.join(img_folder, '%03d.%s.png' \
+			% (self.id, self.name_cn))
+		if not os.path.exists(img_file):
+			print('Downloading %s ...' % os.path.relpath(img_file))
+			r = requests.get(self.img_link)
+			with open(img_file, 'wb') as f:
+				f.write(r.content)
+		else:
+			print('Phase 1 image of %s already exists.' % self.name_cn)
+		return img_file
+
+	def show(self, window_name, wait=0):
+		self.img_file = self.download_gacha_card_img()
+		img = cv2.imread(self.img_file)
+		cv2.imshow(window_name, img)
+		cv2.waitKey(wait)
 
 if __name__ == '__main__':
 	fgoCard = FGOCard('Servant', 1, 4, 0, '.')

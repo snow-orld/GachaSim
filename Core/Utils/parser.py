@@ -17,8 +17,9 @@ import codecs
 print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(
 		__file__, __name__,str(__package__)))
 from .config import read_conf
-from .crawler import fetch_servant_card_images
+from .crawler import fetch_servant_card_images, fetch_craft_card_images
 from ..FGO.fgo_servant import Servant
+from ..FGO.fgo_craft import Craft
 
 CURDIR = os.path.dirname(__file__)
 GAMECONF = read_conf()
@@ -40,7 +41,8 @@ def write_header(header, is_servant=True):
 	with codecs.open(tmp_file, 'w') as f:
 		string = ''
 		for i, field in enumerate(header):
-			string = '%s%s%s' % (string, field, ', ' if i < len(header) - 1 else '')
+			string = '%s%s%s' % (string, field, \
+				', ' if i < len(header) - 1 else '')
 			if len(string) > 80 - 20:
 				f.write('%s\\\n' % string)
 				string = ''
@@ -76,11 +78,14 @@ def parse_servant(lines):
 			np_type, class_icon, sort_atk, sort_hp))
 
 		img_links = fetch_servant_card_images(name_link, GAMECONF['use_cache'])
-		
+		avatar = os.path.join(GAMECONF['url_img_root'], avatar.lstrip('/'))
+
 		servant = Servant(id, star, name_cn, name_jp, name_en, name_link, \
 		                  name_other, cost, faction, get, hp, atk, class_link, \
 		                  avatar, np_type, img_links)
 		servant.show()
+
+		servants.append(servant)
 		break
 
 	return servants
@@ -91,7 +96,30 @@ def parse_craft(lines):
 
 	@return list of Craft objects, sorted by craft essence id.
 	"""
-	pass
+	crafts = []
+
+	header = lines[0].rstrip().split(',')
+	write_header(header, is_servant=False)
+
+	for line in lines[1:]:
+		id, star, star_str, name, name_link, name_other, cost, hp1, hpmax, \
+		atk1, atkmax, des, des_max, icon, icon_eff, type_marker, stars_marker, \
+		stats_marker, sort_atk, sort_hp = line.rstrip().split(',')
+
+		print('Craft %03d: %s %s %s hp1 %s hpmax %s atk1 %s atkmax %s ' \
+			'des %s des_max %s type_marker %s' % 
+			(int(id), star_str, name, name_link, hp1, hpmax, atk1, atkmax,
+				des, des_max, type_marker))
+
+		img_link = fetch_craft_card_images(name_link, GAMECONF['use_cache'])
+		icon = os.path.join(GAMECONF['url_img_root'], icon.lstrip('/'))
+
+		craft = Craft(id, star, name, name_link, cost, hp1, hpmax, \
+		         atk1, atkmax, des, des_max, icon, img_link)
+		craft.show()
+
+		crafts.append(craft)
+		break
 
 def main():
 	names = ['英灵图鉴', '礼装图鉴']

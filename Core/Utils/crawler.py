@@ -75,8 +75,11 @@ def download_page(name, renderJS=False):
 		os.makedirs(webfolder)
 	file = os.path.join(webfolder, '%s%s.html' 
 		 % (name.replace('/','-'), '_rendered' if renderJS else ''))
-	file_mtime_local = datetime.fromtimestamp(os.path.getmtime(file))
-	file_mtime_local = LOCALTZ.localize(file_mtime_local)
+	if os.path.exists(file):
+		file_mtime_local = datetime.fromtimestamp(os.path.getmtime(file))
+		file_mtime_local = LOCALTZ.localize(file_mtime_local)
+	else:
+		file_mtime_local = LOCALTZ.localize(datetime.now())
 
 	if os.path.exists(file):
 		print('%s already exists ...' % os.path.relpath(file))
@@ -110,7 +113,7 @@ def download_page(name, renderJS=False):
 
 	return file
 
-def fetch_data_as_text(name, online=True, renderJS=False):
+def fetch_html_text(name, online=True, renderJS=False):
 	"""
 	According to given sub url's name appended after fgo.wiki/w/, get the list
 	data of either sevant or craft as a html text.
@@ -143,7 +146,7 @@ def fetch_csv_data(name, online=True, renderJS=False):
 		is a comma separated string.
 	"""
 	assert name in ['英灵图鉴', '礼装图鉴'], "Cannot fetch csv data from %s" % name
-	html_text = fetch_data_as_text(name, online, renderJS)
+	html_text = fetch_html_text(name, online, renderJS)
 
 	reg = r'raw_str = "(.*)"'
 	match = re.search(reg, html_text)
@@ -165,7 +168,7 @@ def fetch_csv_data(name, online=True, renderJS=False):
 
 	return rows
 
-def fetch_unrendered(urls, use_cache):
+def fetch_all_cards_unrendered(urls, use_cache):
 	"""
 	This func does not support JS driven websites, since the js generated
 	content is rendered in client only. Requests only get the original html.
@@ -180,7 +183,7 @@ def fetch_unrendered(urls, use_cache):
 		elif use_cache:
 			file = download_page(url, renderJS=False)
 
-def fetch_jsrendered(urls, use_cache):
+def fetch_all_cards_jsrendered(urls, use_cache):
 	"""
 	Utilize the new package: requests_html
 	Ref: https://stackoverflow.com/questions/8049520/web-scraping-javascript-page-with-python
@@ -199,10 +202,10 @@ def fetch_jsrendered(urls, use_cache):
 		elif use_cache:
 			file = download_page(url, renderJS=True)
 
-def fetch(use_cache):
+def fetch_cards_summary(use_cache):
 	urls = ['英灵图鉴', '礼装图鉴', '拉斯维加斯御前比试推荐召唤2/模拟器']
-	fetch_unrendered(urls, use_cache)
-	# fetch_jsrendered(urls, use_cache)
+	fetch_all_cards_unrendered(urls, use_cache)
+	# fetch_all_cards_jsrendered(urls, use_cache)
 
 def write_html(html_text, filename):
 	"""
@@ -226,7 +229,7 @@ def fetch_servant_card_images(name_link, use_cache, renderJS=False):
 			 and april fool
 	"""
 	s = datetime.now()
-	html_text = fetch_data_as_text(name_link, \
+	html_text = fetch_html_text(name_link, \
 		online=not use_cache, renderJS=renderJS)
 
 	# BeautifulSoup is too slow and not user-tolerable whether using cache.
@@ -256,16 +259,26 @@ def fetch_servant_card_images(name_link, use_cache, renderJS=False):
 	links = [os.path.join(img_root, link) for link in img_links]
 	return links
 
-def fetch_craft_card_images():
+def fetch_craft_card_images(name_link, use_cache, renderJS=False):
 	"""
 	Fetch all of the images' link of the servant by name_link.
 	
 	@param online whether to fetch directly online without using cache
 	@param renderJS whether to render js driven websites.
-	@return list of image links in order of Phase 1, 2, 3, 4, costume,
-			 and april fool
+	@return full-sized card image link
 	"""
-	pass
+	s = datetime.utcnow()
+	html_text = fetch_html_text(name_link, \
+		online=not use_cache, renderJS=renderJS)
+
+	reg = r'%s\.png.*?data-srcset=".*?1\.5x,\s/+(.*?)\s2x"' % name_link
+	img_link = re.search(reg, html_text).groups()[0]
+
+	e = datetime.utcnow()
+	print('Fetch craft_card_img (%s) costs: %s' % 
+		('use cache' if use_cache else 'online', str(e - s)))
+
+	return os.path.join(GAMECONF['url_img_root'], img_link)
 
 def main():
 	use_cache = GAMECONF['use_cache']
