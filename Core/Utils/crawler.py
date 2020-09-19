@@ -18,18 +18,26 @@ import codecs
 import platform
 if platform.system() != 'Windows':
 	from requests_html import HTMLSession
-from datetime import date, datetime
+from datetime import date, datetime, timezone, timedelta
+import pytz, tzlocal
 import re
 from bs4 import BeautifulSoup
+import cv2
 
 from .config import read_conf
 
 CURDIR = os.path.dirname(__file__)
 GAMECONF = read_conf()
+UTC = timezone.utc
+CST = pytz.timezone('Asia/Shanghai')
+# datetime.timezone, not work with tz convertion
+LOCALTZ = datetime.now(timezone(timedelta(0))).astimezone().tzinfo
+# pytz.timezone
+LOCALTZ = tzlocal.get_localzone()
 
-def crawl_data(name, renderJS=False):
+def send_requests(name, renderJS=False):
 	"""
-	Crawl data from remote fgo.wiki/w/name.
+	Get response object from sent requests to remote fgo.wiki/w/name.
 
 	@param name the relative url of target url to fgo.wiki/w/
 	@param renderJS whether to render js driven websites
@@ -67,6 +75,8 @@ def download_page(name, renderJS=False):
 		os.makedirs(webfolder)
 	file = os.path.join(webfolder, '%s%s.html' 
 		 % (name.replace('/','-'), '_rendered' if renderJS else ''))
+	file_mtime_local = datetime.fromtimestamp(os.path.getmtime(file))
+	file_mtime_local = LOCALTZ.localize(file_mtime_local)
 
 	if os.path.exists(file):
 		print('%s already exists ...' % os.path.relpath(file))
@@ -75,7 +85,7 @@ def download_page(name, renderJS=False):
 		print('Restricted internet access to check latest %s.' % name)
 		return file
 
-	r = crawl_data(name, renderJS)
+	r = send_requests(name, renderJS)
 
 	# Use the <li id="footer-info-lastmod"> tag to identify the
 	# last modified time
@@ -84,12 +94,16 @@ def download_page(name, renderJS=False):
 		      r'\D*(\d{1,2}):(\d{1,2}).*</li>'
 		y, m, d, H, M = [int(i) for i in re.search(reg, r.text).groups()]
 		lastmod = '%i %i %i %i:%i:00 CST' % (d, m, y, H, M)
-		lastmod = datetime.strptime(lastmod, '%d %m %Y %H:%M:%S %Z')
+		lastmod_cst = datetime.strptime(lastmod, '%d %m %Y %H:%M:%S %Z')
+		lastmod_cst = CST.localize(lastmod_cst)
 	except AttributeError:
-		lastmod = datetime.utcfromtimestamp(os.path.getmtime(file))
+		lastmod_cst = file_mtime_local
+
+	# print('File mod time %s %s' % (file_mtime_local.tzname(), file_mtime_local))
+	# print('Web mod time %s %s' % (lastmod_cst.tzname(), lastmod_cst))
 
 	if not os.path.exists(file) or os.stat(file).st_size == 0 \
-		or datetime.utcfromtimestamp(os.path.getmtime(file)) < lastmod:
+		or  file_mtime_local < lastmod_cst:
 		with codecs.open(file, 'w', encoding='utf-8') as f:
 			print('Updating %s ...' % os.path.basename(file))
 			f.write(r.text)
@@ -109,7 +123,7 @@ def fetch_data_as_text(name, online=True, renderJS=False):
 	if online:
 		url = os.path.join(GAMECONF['url_webpage_root'], name)
 		print('Reading %s ...' % url)
-		r = crawl_data(name, renderJS)
+		r = send_requests(name, renderJS)
 		return r.text
 	else:
 		print('Reading cached data: ', end='')
@@ -162,6 +176,7 @@ def fetch_unrendered(urls, use_cache):
 	for url in urls:
 		if url in ['英灵图鉴', '礼装图鉴']:
 			rows = fetch_csv_data(url, online=not use_cache, renderJS=False)
+			yield rows
 		elif use_cache:
 			file = download_page(url, renderJS=False)
 
@@ -189,6 +204,18 @@ def fetch(use_cache):
 	fetch_unrendered(urls, use_cache)
 	# fetch_jsrendered(urls, use_cache)
 
+def write_html(html_text, filename):
+	"""
+	A helper function to better examin the heirarchy of a html tag.
+	"""
+	tmpfolder = os.path.join(CURDIR, '../../tmp')
+	if not os.path.exists(tmpfolder):
+		os.makedirs(tmpfolder)
+	tagfile = os.path.join(tmpfolder, '%s.html' % filename)
+	with codecs.open(tagfile, 'w') as f:
+		soup = BeautifulSoup(html_text, 'html.parser')
+		f.write(soup.prettify())
+
 def fetch_servant_card_images(name_link, use_cache, renderJS=False):
 	"""
 	Fetch all of the images' link of the servant by name_link.
@@ -198,12 +225,57 @@ def fetch_servant_card_images(name_link, use_cache, renderJS=False):
 	@return list of image links in order of Phase 1, 2, 3, 4, costume,
 			 and april fool
 	"""
-	html_text = fetch_data_as_text(name_link, not use_cache, renderJS)
+	s = datetime.now()
+	html_text = fetch_data_as_text(name_link, \
+		online=not use_cache, renderJS=renderJS)
+
+	# BeautifulSoup is too slow and not user-tolerable whether using cache.
+	# s = datetime.now()
+	# soup = BeautifulSoup(html_text, 'html.parser')
+	# graphpicker = soup.find(attrs={'class': 'graphpicker'})
+	# e = datetime.now()
+	# print('BeautifulSoup find the graphpicker costs: %s' % str(e - s))
+
+	reg = r'(<div class="graphpicker".*</div>)<body>'
+	graphpicker = re.search(reg, html_text).groups()[0]
+	# write_html(graphpicker, filename='graphpicker')
+
+	# If joinee path contains a leading '/', it is considered as absolute path,
+	# any path before it will be discarded.
+	reg = r'data-srcset=".*?1\.5x,\s/+(.*?)\s2x"'
+	img_links = re.findall(reg, graphpicker)
+	# with codecs.open(os.path.join(CURDIR, '../../tmp/img.txt'), 'w') as f:
+	# 	for img_link in img_links:
+	# 		f.write('%s\n' % img_link)
+
+	e = datetime.now()
+	print('Fetch servant_card_img (%s) costs: %s' % 
+		('use cache' if use_cache else 'online', str(e - s)))
+
+	img_root = GAMECONF['url_img_root']
+	links = [os.path.join(img_root, link) for link in img_links]
+	return links
+
+def fetch_craft_card_images():
+	"""
+	Fetch all of the images' link of the servant by name_link.
+	
+	@param online whether to fetch directly online without using cache
+	@param renderJS whether to render js driven websites.
+	@return list of image links in order of Phase 1, 2, 3, 4, costume,
+			 and april fool
+	"""
+	pass
 
 def main():
 	use_cache = GAMECONF['use_cache']
-	fetch(use_cache)
-	fetch_servant_card_images('玛修·基列莱特', use_cache)
+	# fetch(use_cache)
+	img_links = fetch_servant_card_images('玛修·基列莱特', use_cache)
+
+	for link in img_links:
+		img = cv2.imread(link)
+		cv2.imshow('Card', img)
+		cv2.waitKey(50)
 
 if __name__ == '__main__':
 	main()

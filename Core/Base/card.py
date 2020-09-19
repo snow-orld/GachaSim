@@ -21,7 +21,7 @@ class Card(object):
 	"""
 	def __init__(self, game, id, rank, card_img_link):
 		super(Card, self).__init__()
-		self.__id = id
-		self.__rank = rank
-		self.__card_img = card_img_link
-		self.__game = game
+		self.id = id
+		self.rank = rank
+		self.img_link = card_img_link
+		self.game = game

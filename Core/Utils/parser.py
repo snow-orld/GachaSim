@@ -16,9 +16,12 @@ import codecs
 
 print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(
 		__file__, __name__,str(__package__)))
+from .config import read_conf
+from .crawler import fetch_servant_card_images
 from ..FGO.fgo_servant import Servant
 
 CURDIR = os.path.dirname(__file__)
+GAMECONF = read_conf()
 
 def write_header(header, is_servant=True):
 	"""
@@ -72,9 +75,12 @@ def parse_servant(lines):
 			(int(id), name_cn, name_link, class_link, avatar, hp, atk,
 			np_type, class_icon, sort_atk, sort_hp))
 
+		img_links = fetch_servant_card_images(name_link, GAMECONF['use_cache'])
+		
 		servant = Servant(id, star, name_cn, name_jp, name_en, name_link, \
 		                  name_other, cost, faction, get, hp, atk, class_link, \
-		                  avatar, np_type)
+		                  avatar, np_type, img_links)
+		servant.show()
 		break
 
 	return servants

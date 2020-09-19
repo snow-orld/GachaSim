@@ -21,10 +21,10 @@ class Pool(object):
 	"""
 	def __init__(self, id, start_date, open_days, rates):
 		super(Pool, self).__init__()
-		self.__id = id
-		self.__start_date = start_date
-		self.__end_date = start_date + open_days
-		self.__rates = rates
+		self.id = id
+		self.start_date = start_date
+		self.end_date = start_date + open_days
+		self.rates = rates
 
 	def draw(self):
 		"""The gacha core."""

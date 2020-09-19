@@ -24,12 +24,12 @@ class FGOCard(Card):
 	"""
 	def __init__(self, card_type, id, star, name_cn, img_link):
 		super(FGOCard, self).__init__('FGO', id, star, img_link)
-		self.__card_type = card_type.lower()
-		self.__name_cn = name_cn
+		self.card_type = card_type.lower()
+		self.name_cn = name_cn
 
 	def is_valid(self):
-		return self.__card_type.lower() in ['servant', 'craft'] and \
-				self.__rank in range(1, 6)
+		return self.card_type.lower() in ['servant', 'craft'] and \
+				self.rank in range(1, 6)
 
 	def __repr__(self):
 		pass
