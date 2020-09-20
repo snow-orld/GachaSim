@@ -18,7 +18,7 @@ class Craft(FGOCard):
 	"""
 	def __init__(self, id, star, name, name_link, cost, hp1, hpmax, \
 		         atk1, atkmax, des, des_max, icon, img_link):
-		super(Craft, self).__init__('craft', int(id), star, name, img_link)
+		super(Craft, self).__init__('craft', int(id), star, name, img_link, icon)
 		self.star = int(star)
 		self.name_cn = name
 		self.name_link = name_link

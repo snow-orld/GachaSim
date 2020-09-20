@@ -53,8 +53,7 @@ def send_requests(name, renderJS=False):
 		url = os.path.join(GAMECONF['url_webpage_root'], name)
 		r = get(url, stream=True)
 	except:
-		if not os.path.exists(file):
-			print('Connection Failed. Please try again later to get %s.' % name)
+		print('Connection Failed. Please try again later to get %s.' % name)
 	else:
 		if renderJS:
 			r.html.render()
@@ -83,6 +82,8 @@ def download_page(name, renderJS=False):
 
 	if os.path.exists(file):
 		print('%s already exists ...' % os.path.relpath(file))
+		if name not in ['英灵图鉴', '礼装图鉴']:
+			return file
 	# Windows is internet access restricted
 	if platform.system() == 'Windows':
 		print('Restricted internet access to check latest %s.' % name)
@@ -240,7 +241,11 @@ def fetch_servant_card_images(name_link, use_cache, renderJS=False):
 	# print('BeautifulSoup find the graphpicker costs: %s' % str(e - s))
 
 	reg = r'(<div class="graphpicker".*</div>)<body>'
-	graphpicker = re.search(reg, html_text).groups()[0]
+	try:
+		graphpicker = re.search(reg, html_text).groups()[0]
+	except AttributeError:
+		# Current page does not contain a graphpicker, such as Solomon
+		return None
 	# write_html(graphpicker, filename='graphpicker')
 
 	# If joinee path contains a leading '/', it is considered as absolute path,
@@ -271,7 +276,7 @@ def fetch_craft_card_images(name_link, use_cache, renderJS=False):
 	html_text = fetch_html_text(name_link, \
 		online=not use_cache, renderJS=renderJS)
 
-	reg = r'%s\.png.*?data-srcset=".*?1\.5x,\s/+(.*?)\s2x"' % name_link
+	reg = r'\.png.*?width="300".*?data-srcset=".*?1\.5x,\s/+(.*?)\s2x"'
 	img_link = re.search(reg, html_text).groups()[0]
 
 	e = datetime.utcnow()

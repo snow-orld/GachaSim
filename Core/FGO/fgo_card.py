@@ -26,8 +26,8 @@ class FGOCard(Card):
 	@attr card_type the card type, whether it is a servant or an essence craft
 	@attr name_cn the name_cn that appears on the card
 	"""
-	def __init__(self, card_type, id, star, name_cn, img_link):
-		super(FGOCard, self).__init__('FGO', id, star, img_link)
+	def __init__(self, card_type, id, star, name_cn, img_link, avatar_link):
+		super(FGOCard, self).__init__('FGO', id, star, img_link, avatar_link)
 		self.card_type = card_type.title()
 		self.name_cn = name_cn
 
@@ -43,8 +43,10 @@ class FGOCard(Card):
 			% self.card_type)
 		if not os.path.exists(img_folder):
 			os.makedirs(img_folder)
+		
 		img_file = os.path.join(img_folder, '%03d.%s.png' \
-			% (self.id, self.name_cn))
+			% (self.id, self.name_cn.replace('/', '-')))
+		avatar_file = img_file.replace('.png', '_avatar.png')
 		if not os.path.exists(img_file):
 			print('Downloading %s ...' % os.path.relpath(img_file))
 			r = requests.get(self.img_link)
@@ -52,12 +54,22 @@ class FGOCard(Card):
 				f.write(r.content)
 		else:
 			print('Phase 1 image of %s already exists.' % self.name_cn)
-		return img_file
+		if not os.path.exists(avatar_file):
+			print('Downloading %s ...' % os.path.relpath(avatar_file))
+			r = requests.get(self.avatar_link)
+			with open(avatar_file, 'wb') as f:
+				f.write(r.content)
+		else:
+			print('Avatar image of %s already exists.' % self.name_cn)
+	
+		return avatar_file, img_file
 
 	def show(self, window_name, wait=0):
-		self.img_file = self.download_gacha_card_img()
+		self.avatar_file, self.img_file = self.download_gacha_card_img()
 		img = cv2.imread(self.img_file)
 		cv2.imshow(window_name, img)
+		img = cv2.imread(self.avatar_file)
+		cv2.imshow(window_name + ' avatar', img)
 		cv2.waitKey(wait)
 
 if __name__ == '__main__':

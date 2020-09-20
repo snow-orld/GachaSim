@@ -9,6 +9,8 @@ replacing assets.
     - [ ] Define the content of a config.txt file that describes setting-up for 
     a specific game.
 - [ ] Crawling servant details from web.
+	- [ ] Implement an OTA based on local cache. Current parsing time is too 
+	slow, around 0.5s per card.
 - [ ] Define classes:
     - [ ] Data Fetcher
     - [ ] Servant

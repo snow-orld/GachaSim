@@ -19,9 +19,10 @@ class Card(object):
 	@attr card_img the path to the image of the card. can be either local path or url.
 	@attr game the game name to which the card belongs
 	"""
-	def __init__(self, game, id, rank, card_img_link):
+	def __init__(self, game, id, rank, card_img_link, card_avatar_link):
 		super(Card, self).__init__()
 		self.id = id
 		self.rank = rank
 		self.img_link = card_img_link
+		self.avatar_link = card_avatar_link
 		self.game = game

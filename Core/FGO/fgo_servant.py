@@ -19,7 +19,8 @@ class Servant(FGOCard):
 	def __init__(self, id, star, name_cn, name_jp, name_en, name_link, \
 		         name_other, cost, faction, get, hp, atk, class_link, \
 		         avatar, np_type, img_links):
-		super(Servant, self).__init__('servant', int(id), len(star), name_en, img_links[0])
+		super(Servant, self).__init__('servant', int(id), len(star), name_en, \
+			  img_links[0], avatar)
 		self.star = len(star)
 		self.name_cn = name_cn
 		self.name_jp = name_jp
