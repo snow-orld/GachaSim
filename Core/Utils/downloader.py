@@ -8,12 +8,17 @@
 @env 		python 3.8.4
 
 Batch download all servants and crafts' card images and avatars/icons.
+
+Not necessary to keep around: local image is automatically downloaded
+during FGOCard initialization.
 """
 
 import os
 import workerpool
 import requests
 from datetime import datetime
+import argparse
+from tqdm import tqdm
 
 CURDIR = os.path.dirname(__file__)
 WORKER_NUM = 8
@@ -35,24 +40,26 @@ def download(servants, crafts, worker_num=WORKER_NUM):
 	start = datetime.utcnow()
 
 	class DownloadJob(workerpool.Job):
-		def __init__(self, obj):
+		def __init__(self, obj, pool):
+			super(DownloadJob, self).__init__()
 			self.obj = obj
+			self.pool = pool
 		def run(self):
 			try:
 				self.obj.download_gacha_card_img()
 			except requests.exceptions.ConnectionError:
 				print('Downloading %s aborted. '\
-					'UnknownProtocol(HTTP 0.0/)\nPlease try again' % self.url)
-				pool.terminate()
-				pool.join()
+					'UnknownProtocol(HTTP 0.0/)\nPlease try again' % self.obj.name_cn)
+				# self.pool.terminate()
+				self.pool.join()
 			except KeyboardInterrupt:
 				print('Called KeyboardInterrupt, terminaing workers')
-				pool.terminate()
-				pool.join()
+				# self.pool.terminate()
+				self.pool.join()
 
 	pool = workerpool.WorkerPool(size=worker_num, maxjobs=worker_num)
-	for obj in servants + crafts:
-		job = DownloadJob(obj)
+	for obj in tqdm(servants + crafts):
+		job = DownloadJob(obj, pool)
 		pool.put(job)
 
 	# Send shutdown jobs to all threads, and wait until all the jobs have been completed

@@ -14,6 +14,7 @@ info about one servant in the list.
 import os, sys
 import codecs
 from tqdm import tqdm
+from datetime import datetime
 
 print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(
 		__file__, __name__,str(__package__)))
@@ -114,6 +115,11 @@ def parse_craft(lines):
 		# 	(int(id), star_str, name, name_link, hp1, hpmax, atk1, atkmax,
 		# 		des, des_max, type_marker))
 
+		# Craft 361-366 contains half-corner ':' in name but full-corner '：' in
+		# name_link. And the later is used to name the local image to avoid
+		# naming restriction with ':'.
+		name = name.replace(':', '：').replace('/', '-')
+
 		img_link = fetch_craft_card_images(name_link, GAMECONF['use_cache'])
 		icon = os.path.join(GAMECONF['url_img_root'], icon.lstrip('/'))
 
@@ -123,7 +129,14 @@ def parse_craft(lines):
 
 	return crafts
 
-def main():
+def parse_from_html():
+	"""
+	Parse from previously cached .csv files containing summary info of servant and craft.
+	Extra work of extracting card image link from individual
+	Return servant object, and craft object lists.
+	"""
+	s = datetime.utcnow()
+
 	names = ['英灵图鉴', '礼装图鉴']
 	servants = []
 	crafts = []
@@ -136,7 +149,99 @@ def main():
 			else:
 				crafts = parse_craft(lines)
 
-	download(servants, crafts)
+	e = datetime.utcnow()
+	print('Parsing servants and crafts from html files costs: %s' % (e - s))
+
+	return servants, crafts
+
+def write_whole_info(servants, crafts):
+	"""
+	Write parsed servants' and crafts' objects to local csv file, with only
+	info recorded in the class of Servant and Craft.
+	"""
+	print('Writing class data to files ...')
+	csv_folder = os.path.join(CURDIR, '../../csv')
+	if not os.path.exists(csv_folder):
+		os.makedirs(csv_folder)
+	servant_file = os.path.join(csv_folder, 'Servants.csv')
+	craft_file = os.path.join(csv_folder, 'Crafts.csv')
+	with codecs.open(servant_file, 'w', encoding='utf-8') as f:
+		f.write('id,star,name_cn,name_jp,name_en,name_link,' \
+				'name_other,cost,faction,get,hp,atk,class_link,' \
+				'avatar,np_type,img_links\n')
+		for servant in servants:
+			str_format = '%d,%d,'+'%s,'*13
+			f.write(str_format % \
+					(servant.id, servant.star, servant.name_cn, servant.name_jp,\
+					 servant.name_en, servant.name_link, servant.name_other,\
+					 servant.cost, servant.faction, servant.get, servant.hp,\
+					 servant.atk, servant.class_link, servant.avatar, \
+					 servant.np_type))
+			f.write('%s\n' % str(servant.img_links).replace(',','\t').\
+			        replace(' ', ''))
+
+	with codecs.open(craft_file, 'w', encoding='utf-8') as f:
+		f.write('id,star,name,name_link,cost,hp1,hpmax,' \
+		        'atk1,atkmax,des,des_max,icon,img_link\n')
+		for craft in crafts:
+			str_format = '%d,%d,'+'%s,'*10+'%s\n'
+			f.write(str_format % \
+					(craft.id, craft.star, craft.name_cn, craft.name_link, \
+					 craft.cost, craft.hp1, craft.hpmax, craft.atk1, \
+					 craft.atkmax, craft.des, craft.des_max, craft.icon, \
+					 craft.img_link))
+
+def parse_from_csv():
+	"""
+	Parse data from previously re-written .csv files, which append img_links
+	info at the end of each line in original .csv files directly generated
+	from '英灵图鉴', '礼装图鉴' pages.
+	"""
+	s = datetime.utcnow()
+
+	csv_folder = os.path.join(CURDIR, '../../csv')
+	servant_file = os.path.join(csv_folder, 'Servants.csv')
+	craft_file = os.path.join(csv_folder, 'Crafts.csv')
+	if not os.path.exists(servant_file) or not os.path.exists(craft_file) or \
+		os.stat(servant_file).st_size == 0 or os.stat(craft_file).st_size == 0:
+		servants, crafts = parse_from_html()
+		write_whole_info(servants, crafts)
+	else:
+		servants = []
+		crafts = []
+		with codecs.open(servant_file, 'r', encoding='utf-8') as f:
+			print('Reading Servants from %s ...' % os.path.relpath(servant_file))
+			for line in tqdm(f.readlines()[1:]):
+				id, star, name_cn, name_jp, name_en, name_link, \
+				name_other, cost, faction, get, hp, atk, class_link, \
+				avatar, np_type, img_links = line.split(',')
+				img_links = img_links.replace('\t', ',')
+				img_links = img_links.replace('\'', '')
+				img_links = img_links.split(']')[0].split('[')[-1]
+				img_links = img_links.split(',')
+				servant = Servant(id, star, name_cn, name_jp, name_en, \
+							name_link, name_other, cost, faction, get, \
+							hp, atk, class_link, avatar, np_type, img_links)
+				servants.append(servant)
+
+		with codecs.open(craft_file, 'r', encoding='utf-8') as f:
+			print('Reading Crafts from %s ...' % os.path.relpath(craft_file))
+			for line in tqdm(f.readlines()[1:]):
+				id, star, name, name_link, cost, hp1, hpmax, atk1, atkmax, \
+				des, des_max, icon, img_link = line.split(',')
+				craft = Craft(id, star, name, name_link, cost, hp1, hpmax, \
+							atk1, atkmax, des, des_max, icon, img_link)
+				crafts.append(craft)
+
+	e = datetime.utcnow()
+	print('Parsing servants and crafts from csv files costs: %s' % (e - s))
+
+	return servants, crafts
+
+def main():
+	servants, crafts = parse_from_csv()
+	print('Loaded %d servants, %d crafts' % (len(servants), len(crafts)))
+	servants[0].show()
 
 if __name__ == '__main__':
 	main()
