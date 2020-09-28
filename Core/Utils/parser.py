@@ -23,6 +23,7 @@ from .crawler import fetch_servant_card_images, fetch_craft_card_images
 from .downloader import download
 from ..FGO.fgo_servant import Servant
 from ..FGO.fgo_craft import Craft
+from ..FGO.fgo_pool import FGOPool
 
 CURDIR = os.path.dirname(__file__)
 GAMECONF = read_conf()
@@ -44,8 +45,8 @@ def write_header(header, is_servant=True):
 	with codecs.open(tmp_file, 'w') as f:
 		string = ''
 		for i, field in enumerate(header):
-			string = '%s%s%s' % (string, field, \
-				', ' if i < len(header) - 1 else '')
+			string = '%s%s%s' % (string, field,
+			                     ', ' if i < len(header) - 1 else '')
 			if len(string) > 80 - 20:
 				f.write('%s\\\n' % string)
 				string = ''
@@ -87,8 +88,8 @@ def parse_servant(lines):
 		if img_links == None:
 			continue
 
-		servant = Servant(id, star, name_cn, name_jp, name_en, name_link, \
-		                  name_other, cost, faction, get, hp, atk, class_link, \
+		servant = Servant(id, star, name_cn, name_jp, name_en, name_link,
+		                  name_other, cost, faction, get, hp, atk, class_link,
 		                  avatar, np_type, img_links)
 		servants.append(servant)
 
@@ -123,8 +124,8 @@ def parse_craft(lines):
 		img_link = fetch_craft_card_images(name_link, GAMECONF['use_cache'])
 		icon = os.path.join(GAMECONF['url_img_root'], icon.lstrip('/'))
 
-		craft = Craft(id, star, name, name_link, cost, hp1, hpmax, \
-		         atk1, atkmax, des, des_max, icon, img_link)
+		craft = Craft(id, star, name, name_link, cost, hp1, hpmax,
+		              atk1, atkmax, des, des_max, icon, img_link)
 		crafts.append(craft)
 
 	return crafts
@@ -166,29 +167,29 @@ def write_whole_info(servants, crafts):
 	servant_file = os.path.join(csv_folder, 'Servants.csv')
 	craft_file = os.path.join(csv_folder, 'Crafts.csv')
 	with codecs.open(servant_file, 'w', encoding='utf-8') as f:
-		f.write('id,star,name_cn,name_jp,name_en,name_link,' \
-				'name_other,cost,faction,get,hp,atk,class_link,' \
-				'avatar,np_type,img_links\n')
+		f.write('id,star,name_cn,name_jp,name_en,name_link,'
+		        'name_other,cost,faction,get,hp,atk,class_link,'
+		        'avatar,np_type,img_links\n')
 		for servant in servants:
 			str_format = '%d,%d,'+'%s,'*13
 			f.write(str_format % \
-					(servant.id, servant.star, servant.name_cn, servant.name_jp,\
-					 servant.name_en, servant.name_link, servant.name_other,\
-					 servant.cost, servant.faction, servant.get, servant.hp,\
-					 servant.atk, servant.class_link, servant.avatar, \
+					(servant.id, servant.star, servant.name_cn, servant.name_jp,
+					 servant.name_en, servant.name_link, servant.name_other,
+					 servant.cost, servant.faction, servant.get, servant.hp,
+					 servant.atk, servant.class_link, servant.avatar,
 					 servant.np_type))
 			f.write('%s\n' % str(servant.img_links).replace(',','\t').\
 			        replace(' ', ''))
 
 	with codecs.open(craft_file, 'w', encoding='utf-8') as f:
-		f.write('id,star,name,name_link,cost,hp1,hpmax,' \
+		f.write('id,star,name,name_link,cost,hp1,hpmax,'
 		        'atk1,atkmax,des,des_max,icon,img_link\n')
 		for craft in crafts:
 			str_format = '%d,%d,'+'%s,'*10+'%s\n'
 			f.write(str_format % \
-					(craft.id, craft.star, craft.name_cn, craft.name_link, \
-					 craft.cost, craft.hp1, craft.hpmax, craft.atk1, \
-					 craft.atkmax, craft.des, craft.des_max, craft.icon, \
+					(craft.id, craft.star, craft.name_cn, craft.name_link,
+					 craft.cost, craft.hp1, craft.hpmax, craft.atk1,
+					 craft.atkmax, craft.des, craft.des_max, craft.icon,
 					 craft.img_link))
 
 def parse_from_csv():
@@ -219,9 +220,9 @@ def parse_from_csv():
 				img_links = img_links.replace('\'', '')
 				img_links = img_links.split(']')[0].split('[')[-1]
 				img_links = img_links.split(',')
-				servant = Servant(id, star, name_cn, name_jp, name_en, \
-							name_link, name_other, cost, faction, get, \
-							hp, atk, class_link, avatar, np_type, img_links)
+				servant = Servant(id, star, name_cn, name_jp, name_en,
+				                  name_link, name_other, cost, faction, get,
+				                  hp, atk, class_link, avatar, np_type, img_links)
 				servants.append(servant)
 
 		with codecs.open(craft_file, 'r', encoding='utf-8') as f:
@@ -229,8 +230,8 @@ def parse_from_csv():
 			for line in tqdm(f.readlines()[1:]):
 				id, star, name, name_link, cost, hp1, hpmax, atk1, atkmax, \
 				des, des_max, icon, img_link = line.split(',')
-				craft = Craft(id, star, name, name_link, cost, hp1, hpmax, \
-							atk1, atkmax, des, des_max, icon, img_link)
+				craft = Craft(id, star, name, name_link, cost, hp1, hpmax,
+				              atk1, atkmax, des, des_max, icon, img_link)
 				crafts.append(craft)
 
 	e = datetime.utcnow()
@@ -238,10 +239,41 @@ def parse_from_csv():
 
 	return servants, crafts
 
+def parse_pools_from_conf():
+	"""
+	Parse pool data from json config file for fgo pool definition.
+	"""
+	s = datetime.utcnow()
+	print('Parsing %d pools from game config %s ...' % (len(GAMECONF['pool']),
+		GAMECONF['pool_json']))
+	pools = []
+	for pool_dict in GAMECONF['pool']:
+		id = pool_dict['id']
+		pool_name = pool_dict['pool_name']
+		start_date = pool_dict['start_date']
+		open_days = pool_dict['open_days']
+		name_list = pool_dict['name_list']
+		rates_str = pool_dict['rates_str']
+		pool = FGOPool(id, pool_name, start_date, open_days,
+		               name_list, rates_str)
+		pools.append(pool)
+	e = datetime.utcnow()
+	print('Parsing pools from json files costs: %s' % (e - s))
+	return pools
+
 def main():
 	servants, crafts = parse_from_csv()
 	print('Loaded %d servants, %d crafts' % (len(servants), len(crafts)))
-	servants[0].show()
+	# servants[0].show()
+	pools = parse_pools_from_conf()
+	res = pools[0].summon1(0)
+	print('Summon1\n%s' % res)
+	res = pools[0].summon10(0)
+	print('Summon10\n%s' % res)
+	res = pools[0].summon10ssr(0)
+	print('Summon10ssr\n%s' % res)
+	res = pools[0].summon10ssrsr(0)
+	print('Summon10ssrsr\n%s' % res)
 
 if __name__ == '__main__':
 	main()

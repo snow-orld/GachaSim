@@ -7,9 +7,9 @@
 		"description": "This file describes all necessary background info to setup a gacha simulation for FGO."
 	},
 	"name": "FGO",
-	"card_type": ["SSR", "SR"],
-	"pool_type": ["story", "rateup"],
 	"url": "https://fgo.wiki",
 	"url_img_root": "https://fgo.wiki",
-	"url_webpage_root": "https://fgo.wiki/w"
+	"url_webpage_root": "https://fgo.wiki/w",
+	"read_pool_from_json": true,
+	"pool_json": "conf_fgo_pool.json"
 }
