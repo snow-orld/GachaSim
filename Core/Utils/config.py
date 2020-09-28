@@ -11,7 +11,7 @@ Read configuration json files to set up the environment of the game.
 """
 
 import os, sys
-import re
+import codecs
 import json
 
 CURDIR = os.path.dirname(__file__)
@@ -23,10 +23,19 @@ def read_conf():
 		conf = json.load(f)
 		game = conf['game']
 		online = conf['use_cache']
-	gameConfFile = os.path.join(CURDIR, '../../Config/conf_%s.json' % game.lower())
+	gameConfFile = os.path.join(CURDIR, '../../Config/conf_%s.json' \
+	                            % game.lower())
 	with open(gameConfFile, 'r') as f:
 		conf = json.load(f)
 		conf['use_cache'] = online
+
+		readPoolJson = conf['read_pool_from_json']
+		if readPoolJson:
+			poolConfFile = os.path.join(CURDIR, '../../Config/%s' \
+			                            % conf['pool_json'])
+			with codecs.open(poolConfFile, 'r', encoding='utf-8') as fpool:
+				conf['pool'] = json.load(fpool)['pools']
+
 		return conf
 
 if __name__ == '__main__':
